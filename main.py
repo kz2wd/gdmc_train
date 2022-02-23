@@ -23,7 +23,19 @@ if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    print(w.get_height_map())
+    # Remove unused bit
+    data = map(lambda x: int(x[:-1]), w.get_height_map())
+
+    # Must be wrong somewhere ?
+    # Check : https://minecraft.fandom.com/wiki/Chunk_format
+    data = map(bin, data)
+
+    h_map = []
+    for d in data:
+        h_map.append(d[0: 6])
+
+    h_map = map(lambda x: int(x, 2), h_map)
+    print(list(h_map))
 
     w.write_buffer()
 
