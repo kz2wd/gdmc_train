@@ -40,4 +40,7 @@ class World:
             print(f"Average : {round(self.requests_amount / took, 2)}rq/s")
 
     def get_height_map(self) -> list:
-        return requests.get(self.address + 'chunks?x=0&z=0&dx=1&dz=1').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')[1].split(']')[0].replace('L', '').split(',')
+        rq = requests.get(self.address + 'chunks?x=0&z=0&dx=1&dz=1').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')[1].split(
+            ']')[0]
+        print(rq)
+        return rq.replace('L', '').split(',')
