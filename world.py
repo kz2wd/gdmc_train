@@ -39,8 +39,26 @@ class World:
         if took != 0:
             print(f"Average : {round(self.requests_amount / took, 2)}rq/s")
 
-    def get_height_map(self) -> list:
-        rq = requests.get(self.address + 'chunks?x=0&z=0&dx=1&dz=1').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')[1].split(
-            ']')[0]
-        print(rq)
-        return rq.replace('L', '').split(',')
+    def get_chunk_height_map(self, x: int, z: int, dx: int, dz: int) -> list:
+        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={dx}&dz={dz}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
+        h_map = []
+        for i in range(1, len(rq)):
+            h_map += treat_chunk_data(rq[i].split(']')[0].replace('L', '').split(','))
+
+        return h_map
+
+
+def treat_chunk_data(rq):
+    data = list(map(lambda x: f"{int(x):063b}", rq[:-1]))
+    data.append(f"{int(rq[-1]):036b}")
+    bin_data = "".join(d for d in data)
+    h_map = [int(p, 2) for p in get_packets(bin_data, 9)]
+    return h_map
+
+
+def get_packets(data, size):
+    i = 0
+    outputs = len(data) // size
+    while outputs > i:
+        yield data[i * size: (i + 1) * size]
+        i += 1
