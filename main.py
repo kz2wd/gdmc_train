@@ -19,14 +19,41 @@ def cube(_w: world.World, x: int, y: int, z: int, size: int, material: str) -> N
                 _w.set_block(i, j, k, material)
 
 
+def get_areas(heightmap, first_bloc_location):
+    areas = {}
+    for x in range(16):
+        for y in range(16):
+            index = x + y * 16
+            current = heightmap[index]
+            try:
+                areas[current]
+            except KeyError:
+                areas[current] = [[(x, y)]]
+
+            if index + 1 < 256 and current == heightmap[index + 1]:
+                for area in areas[current]:
+                    if (x, y) in area:
+                        area.append((x + 1, y))
+                        break
+            if index + 16 < 256 and current == heightmap[index + 16]:
+                for area in areas[current]:
+                    if (x, y) in area:
+                        area.append((x, y + 1))
+                        break
+
+    print(areas)
+
+
 if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    h_map = w.get_chunk_height_map(0, 0, 1, 2)
+    h_map = w.get_chunk_height_map(0, 0, 1, 1)
 
     print(h_map)
     print(len(h_map))
+
+    get_areas(h_map, (0, 0, 0))
     w.write_buffer()
 
     w.show_stats()
