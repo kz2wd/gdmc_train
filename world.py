@@ -52,7 +52,25 @@ def treat_chunk_data(rq):
     data = list(map(lambda x: f"{int(x):063b}", rq[:-1]))
     data.append(f"{int(rq[-1]):036b}")
     bin_data = "".join(d for d in data)
-    h_map = [int(p, 2) for p in get_packets(bin_data, 9)]
+
+    # disaster of code but order may be 'more' correct
+    # invert sequence every 7 value
+    h_map = []
+    count = 0
+    temp_list = []
+    for val in get_packets(bin_data, 9):
+        temp_list.append(int(val, 2))
+        count += 1
+        if count == 7:
+            h_map += temp_list[::-1]
+            temp_list = []
+            count = 0
+
+    h_map += temp_list[::-1]
+
+    # beautiful code but order incorrect
+    # h_map = [int(p, 2) for p in get_packets(bin_data, 9)]
+
     return h_map
 
 
