@@ -4,30 +4,48 @@ from OpenGL.GL import glBegin, GL_LINES, glVertex3fv, glEnd, glTranslatef, glCle
     GL_DEPTH_BUFFER_BIT, glRotatef
 from OpenGL.GLU import gluPerspective
 
-ratio = 10
+ratio = 50
 
 
-def show_heightmap(heightmap, tile_length=1):  # improved :D
+def show_heightmap(heightmap, tile_length=.5):
+
+    # Not perfect but good enough !
 
     center = [0, -1, 0]
+
     tile_number = len(heightmap)
 
     corner = [center[0] - (tile_number * tile_length/2), center[1], center[2] - (tile_number * tile_length)/2]
 
     vertices = []
+    half_tile = tile_length / 2
 
     for i in range(tile_number):
         for j in range(tile_number):
-            vertices.append([i * tile_length + corner[0], heightmap[i][j] / ratio, j * tile_length + corner[2]])
+            vertices.append([i * tile_length + corner[0] + half_tile, heightmap[i][j] / ratio, j * tile_length + corner[2] + half_tile])
+            vertices.append([i * tile_length + corner[0] - half_tile, heightmap[i][j] / ratio, j * tile_length + corner[2] + half_tile])
+            vertices.append([i * tile_length + corner[0] - half_tile, heightmap[i][j] / ratio, j * tile_length + corner[2] - half_tile])
+            vertices.append([i * tile_length + corner[0] + half_tile, heightmap[i][j] / ratio, j * tile_length + corner[2] - half_tile])
 
-    edges = []  # not working
+    edges = []
 
-    for i in range(tile_number):
-        for j in range(tile_number - 1):
+    for i in range(0, tile_number * 4, 4):
+        for j in range(0, tile_number * 4, 4):
+
+            # Bloc face
             edges.append([j + i * tile_number, j + i * tile_number + 1])
+            edges.append([j + i * tile_number, j + i * tile_number + 3])
+            edges.append([j + i * tile_number + 2, j + i * tile_number + 1])
+            edges.append([j + i * tile_number + 2, j + i * tile_number + 3])
 
-    for i in range(len(vertices) - tile_number):
-        edges.append([i, i + tile_number])
+    for i in range(0, (tile_number - 1) * 4, 4):
+        for j in range(0, (tile_number - 1) * 4, 4):
+            # Connection to next bloc
+            edges.append([j + i * tile_number, j + i * tile_number + 7])
+            edges.append([j + i * tile_number + 1, j + i * tile_number + 6])
+
+            edges.append([j + i * tile_number, j + i * tile_number + tile_number * 4 + 1])
+            edges.append([j + i * tile_number + 3, j + i * tile_number + tile_number * 4 + 2])
 
     return edges, vertices
 
@@ -48,9 +66,10 @@ def visualize_chunk(chunk):
     y = max(chunk) / ratio
     heightmap = [chunk[i * 16:16 * (i + 1)] for i in range(16)]
 
-    edges, vertices = show_heightmap(heightmap, 1)
+    edges, vertices = show_heightmap(heightmap)
 
     print(len(vertices))
+    print(len(edges))
     gluPerspective(45, (display[0] / display[1]), 0.1, 200.0)
 
     glTranslatef(0.0, -y * 1.1, -15)
