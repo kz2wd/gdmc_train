@@ -1,8 +1,8 @@
 import pygame
-from pygame.locals import *
-
-from OpenGL.GL import *
-from OpenGL.GLU import *
+from pygame.locals import DOUBLEBUF, OPENGL
+from OpenGL.GL import glBegin, GL_LINES, glVertex3fv, glEnd, glTranslatef, glClear, GL_COLOR_BUFFER_BIT, \
+    GL_DEPTH_BUFFER_BIT, glRotatef
+from OpenGL.GLU import gluPerspective
 
 ratio = 10
 
