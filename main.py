@@ -11,9 +11,10 @@ import threading
 def get_time(f):
     def modified(*args, **kwargs):
         start = time.time()
-        f(*args, **kwargs)
+        results = f(*args, **kwargs)
         took = round(time.time() - start, 2)
         print(f'{f.__name__} Took {took}s')
+        return results
     return modified
 
 
@@ -62,6 +63,17 @@ def compute_steep(heightmap):
     return steeps
 
 
+# To Test
+def chunk_heigtmap_to_coordinate(chunk, offset):
+    coords = []
+
+    for x in range(16):
+        for y in range(16):
+            coords.append((offset[0] + x, chunk[x + (y * 16)], offset[1] + y))
+
+    return coords
+
+
 def get_best_area(heightmap, size, speed=4):
     steep = compute_steep(heightmap)
     len_hmap = len(heightmap)
@@ -107,22 +119,25 @@ def producer(pipe: Pipeline, wor: world.World):
         time.sleep(.1)
 
 
+def build_simple_house(start):
+    pass
+
+
 if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    # h_map = w.get_chunk_height_map(0, 1, 1, 1)
+    h_map = w.get_chunk_height_map(0, 1, 1, 1)
 
-    # best = get_best_area(h_map, 5, speed=1)
-    # print(best)
+    best = get_best_area(h_map, 5, speed=1)
+    print(best)
+
+
+    # pipeline = Pipeline()
     #
-    # h_map[best] = -10
-
-    pipeline = Pipeline()
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(producer, pipeline, w)
-        executor.submit(visualize_chunk_update, pipeline)
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    #     executor.submit(producer, pipeline, w)
+    #     executor.submit(visualize_chunk_update, pipeline)
 
 
 
