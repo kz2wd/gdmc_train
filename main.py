@@ -1,8 +1,11 @@
+import concurrent.futures
+
 import world
 import time
 from nice_plot import plot_chunk
-from virtual_view import visualize_chunk
+from virtual_view import visualize_chunk_update, Pipeline
 import random
+import threading
 
 
 def get_time(f):
@@ -97,18 +100,35 @@ def nice_print(chunk):
     print(info)
 
 
+def producer(pipe: Pipeline, wor: world.World):
+    while True:
+        pipe.set_content(wor.get_chunk_height_map(0, 1, 1, 1))
+        print("getting hmap")
+        time.sleep(.1)
+
+
 if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    h_map = w.get_chunk_height_map(0, 1, 1, 1)
+    # h_map = w.get_chunk_height_map(0, 1, 1, 1)
 
-    best = get_best_area(h_map, 5, speed=1)
-    print(best)
+    # best = get_best_area(h_map, 5, speed=1)
+    # print(best)
+    #
+    # h_map[best] = -10
 
-    h_map[best] = -10
+    pipeline = Pipeline()
 
-    visualize_chunk(h_map)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        executor.submit(producer, pipeline, w)
+        executor.submit(visualize_chunk_update, pipeline)
+
+
+
+
+
+
 
     # print("Chunk")
     # nice_print(h_map)
