@@ -1,5 +1,7 @@
 import concurrent.futures
 
+from typing import Tuple
+
 import world
 import time
 from nice_plot import plot_chunk
@@ -23,6 +25,13 @@ def cube(_w: world.World, x: int, y: int, z: int, size: int, material: str) -> N
     for i in range(x, size + x):
         for j in range(y, y + size):
             for k in range(z, z + size):
+                _w.set_block(i, j, k, material)
+
+
+def panel(_w: world.World, x: int, y: int, z: int, width: int, height: int, depth: int, material: str) -> None:
+    for i in range(x, x + width):
+        for j in range(y, y + height):
+            for k in range(z, z + depth):
                 _w.set_block(i, j, k, material)
 
 
@@ -63,7 +72,7 @@ def compute_steep(heightmap):
     return steeps
 
 
-# To Test
+# Seems okay
 def chunk_heigtmap_to_coordinate(chunk, offset):
     coords = []
 
@@ -119,17 +128,21 @@ def producer(pipe: Pipeline, wor: world.World):
         time.sleep(.1)
 
 
-def build_simple_house(start):
-    pass
+def build_simple_house(_w: world.World, start: Tuple[int, int, int], size: int):
+    # Todo : finish the simple houses
+    panel(_w, start[0], start[1], start[2], size, size, 1, "minecraft:oak_planks")
+
 
 
 if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
+    build_size = 5
+
     h_map = w.get_chunk_height_map(0, 1, 1, 1)
 
-    best = get_best_area(h_map, 5, speed=1)
+    best = get_best_area(h_map, build_size, speed=1)
     print(best)
 
 
@@ -139,11 +152,14 @@ if __name__ == "__main__":
     #     executor.submit(producer, pipeline, w)
     #     executor.submit(visualize_chunk_update, pipeline)
 
+    coords = chunk_heigtmap_to_coordinate(h_map, (0, 16))
+    house_center = coords[best]
+    print(house_center)
 
+    shift = build_size // 2
+    house_start = (house_center[0] - shift, house_center[1], house_center[2] - shift)
 
-
-
-
+    build_simple_house(w, house_start, 5)
 
     # print("Chunk")
     # nice_print(h_map)
