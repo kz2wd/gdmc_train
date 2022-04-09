@@ -8,6 +8,7 @@ from nice_plot import plot_chunk
 from virtual_view import visualize_chunk_update, Pipeline
 import random
 import threading
+import math
 
 
 def get_time(f):
@@ -78,23 +79,27 @@ def chunk_heigtmap_to_coordinate(chunk, offset):
 
     for x in range(16):
         for y in range(16):
-            coords.append((offset[0] + x, chunk[x + (y * 16)], offset[1] + y))
+            coords.append((int(offset[0] + x), int(chunk[x + (y * 16)]), int(offset[1] + y)))
 
     return coords
 
 
-def get_best_area(heightmap, size, speed=4):
+def get_best_area(heightmap, size, speed=4, roof=200):
     steep = compute_steep(heightmap)
     len_hmap = len(heightmap)
     min_score = 100_000_000
     best_coord = None
     for i in range(0, len_hmap, speed):
-        coord = heightmap[i]
+        coord = i
         score = 0
+        # Disqualify if too high
+        if heightmap[i] >= roof:
+            score = 100_000_000
+
         for neighbor in get_around(coord, len_hmap, size, do_inverted_too=True):
             score += steep[neighbor]
         if score < min_score:
-            print(f'found new score {score} at {coord}')
+            # print(f'found new score {score} at {coord}')
             best_coord = coord
             min_score = score
     return best_coord
@@ -128,9 +133,23 @@ def producer(pipe: Pipeline, wor: world.World):
         time.sleep(.1)
 
 
-def build_simple_house(_w: world.World, start: Tuple[int, int, int], size: int):
+def build_simple_house(_w: world.World, start: Tuple[int, int, int], size: Tuple[int, int, int]):
     # Todo : finish the simple houses
-    panel(_w, start[0], start[1], start[2], size, size, 1, "minecraft:oak_planks")
+    # Walls
+    panel(_w, start[0], start[1], start[2], size[0], size[1], 1, "minecraft:oak_planks")
+    panel(_w, start[0], start[1], start[2] + size[2] - 1, size[0], size[1], 1, "minecraft:oak_planks")
+    panel(_w, start[0], start[1], start[2], 1, size[1], size[2], "minecraft:oak_planks")
+    panel(_w, start[0] + size[0] - 1, start[1], start[2], 1, size[1], size[2], "minecraft:oak_planks")
+
+    # Ground
+    panel(_w, start[0], start[1], start[2], size[0], 1, size[2], "minecraft:oak_planks")
+
+    # Floor
+    panel(_w, start[0], start[1] + size[1] - 1, start[2], size[0], 1, size[2], "minecraft:oak_planks")
+
+    # Door
+    _w.set_block(start[0] + size[0] // 2, start[1] + 1, start[2], "minecraft:oak_door")
+    _w.set_block(start[0] + size[0] // 2, start[1] + 2, start[2], "minecraft:oak_door[half=upper]")
 
 
 
@@ -138,28 +157,45 @@ if __name__ == "__main__":
     w = world.World()
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    build_size = 5
+    bounding_box = [(0, 0), (100, 100)]
 
-    h_map = w.get_chunk_height_map(0, 1, 1, 1)
+    # Always include the adjacente chunk
+    val_to_chunk_val = lambda val: int(val // 16 + math.copysign(1, val))
 
-    best = get_best_area(h_map, build_size, speed=1)
-    print(best)
+    chunks_area = [(val_to_chunk_val(bounding_box[0][0]), val_to_chunk_val(bounding_box[0][1])),
+                    (val_to_chunk_val(bounding_box[1][0]), val_to_chunk_val(bounding_box[1][1]))]
 
+    chunk_range = int(abs(chunks_area[1][0] - chunks_area[0][0])), int(abs(chunks_area[1][1] - chunks_area[0][1]))
 
-    # pipeline = Pipeline()
-    #
-    # with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-    #     executor.submit(producer, pipeline, w)
-    #     executor.submit(visualize_chunk_update, pipeline)
+    for i in range(50):
+        build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
+        h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
 
-    coords = chunk_heigtmap_to_coordinate(h_map, (0, 16))
-    house_center = coords[best]
-    print(house_center)
+        best = get_best_area(h_map, max(build_size[0], build_size[2]), speed=5)
 
-    shift = build_size // 2
-    house_start = (house_center[0] - shift, house_center[1], house_center[2] - shift)
+        if best is None:
+            continue
+        print(best)
+        print(len(h_map))
 
-    build_simple_house(w, house_start, 5)
+        # pipeline = Pipeline()
+        #
+        # with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        #     executor.submit(producer, pipeline, w)
+        #     executor.submit(visualize_chunk_update, pipeline)
+
+        coords = []
+        for x in range(chunk_range[0]):
+            for z in range(chunk_range[1]):
+                coords += chunk_heigtmap_to_coordinate(h_map[x * 16 + z * 16:x * 16 + z * 16 + 256], ((x + chunks_area[0][0]) * 16, (z + chunks_area[0][1]) * 16))
+
+        print(f"len coords : {len(coords)}")
+        house_center = coords[best]
+        print(house_center)
+
+        house_start = (house_center[0] - build_size[0] // 2, house_center[1], house_center[2] - build_size[2] // 2)
+
+        build_simple_house(w, house_start, build_size)
 
     # print("Chunk")
     # nice_print(h_map)
