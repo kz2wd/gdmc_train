@@ -1,2 +1,9 @@
 
 __pycache__/
+
+Lib/*
+.idea/*
+Include/*
+Scripts/*
+share/*
+pyvenv.cfg
