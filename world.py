@@ -39,13 +39,21 @@ class World:
         if took != 0:
             print(f"Average : {round(self.requests_amount / took, 2)}rq/s")
 
-    def get_chunk_height_map(self, x: int, z: int, dx: int, dz: int) -> list:
-        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={dx}&dz={dz}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
+
+    def get_chunk_height_map(self, x: int, z: int, size_x: int, size_z: int) -> list:
+        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={size}&dz={size}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
         h_map = []
         for i in range(1, len(rq)):
             h_map += treat_chunk_data(rq[i].split(']')[0].replace('L', '').split(','))
 
-        return h_map
+        heightmap_dict = dict()
+
+        for x in range(size_x * 16):
+            for z in range(size_z * 16):
+                # TODO : check if order is correct : maybe it is x * 16 and not z * 16
+                heightmap_dict[(x, z)] = h_map[x + (z * 16)]
+
+        return heightmap_dict
 
 
 def treat_chunk_data(rq):

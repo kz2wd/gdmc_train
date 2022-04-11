@@ -62,16 +62,6 @@ def get_around(actual, max_index, radius, do_inverted_too=False):
                 yield val
 
 
-def compute_steep(heightmap):
-    steeps = []
-    len_heightmap = len(heightmap)
-    for i in range(len_heightmap):
-        steep = 0
-        for j in get_around(i, len_heightmap, 1, do_inverted_too=True):
-            steep += abs(heightmap[i] - heightmap[j])
-        steeps.append(steep)
-    return steeps
-
 
 # Seems okay
 def chunk_heigtmap_to_coordinate(chunk, offset):
@@ -84,41 +74,56 @@ def chunk_heigtmap_to_coordinate(chunk, offset):
     return coords
 
 
-def get_best_area(heightmap, size, speed=4, roof=200):
-    steep = compute_steep(heightmap)
-    len_hmap = len(heightmap)
-    min_score = 100_000_000
-    best_coord = None
-    for i in range(0, len_hmap, speed):
-        coord = i
-        score = 0
-        # Disqualify if too high
-        if heightmap[i] >= roof:
-            score = 100_000_000
+def get_level_batch(heightmap, occupied_coord=None):
+    if occupied_coord is None:
+        occupied_coord = []
+    batchs: list[list[tuple[int, int]]] = []
+    for coord, height in heightmap:
+        current_batch = get_current_batch(batchs, coord)
+        # Todo : fill the batchs but without the occupied spots
 
-        for neighbor in get_around(coord, len_hmap, size, do_inverted_too=True):
-            score += steep[neighbor]
-        if score < min_score:
-            # print(f'found new score {score} at {coord}')
-            best_coord = coord
-            min_score = score
+
+def get_current_batch(batchs: list[list[tuple[int, int]]], coord: tuple[int, int]):
+    for batch in batchs:
+        if coord in batch:
+            return batch
+    new_batch = [coord]
+    batchs.append(new_batch)
+    return new_batch
+
+
+def get_best_area(heightmap, occupied_coord, size, speed=4, roof=200):
+
+
+    batchs = get_level_batch(heightmap, occupied_coord)
+
+    # try to get the best size possible with the batch
+    for batch in batchs:
+        # Idea : center 'mass' of the batch : No
+        """
+        Ok So here is the idea :
+            I should stop thinking about it like : find a location, put a batiment, repeat
+            
+            because I will lose the link between building, I need a way to create the city as a city and not a bunch of structures
+            
+            So we need to establish what we should have :
+            
+            First, we could start with a 'settlement center'
+        
+        """
+        get_batch_center(batch)
+
+
+
     return best_coord
 
 
-def get_best_area_rng(heightmap, size, dots=4):
-    steep = compute_steep(heightmap)
-    max_coord = len(heightmap)
-    min_score = 100_000_000
-    best_coord = None
-    for i in range(dots):
-        coord = random.randint(0, max_coord)
-        score = 0
-        for neighbor in get_around(coord, max_coord, size, do_inverted_too=True):
-            score += steep[neighbor]
-        if score < min_score:
-            best_coord = coord
-            min_score = score
-    return best_coord
+def get_batch_center(batch):
+    x, y = 0, 0
+    for coord in batch:
+        x += coord[0]
+        y += coord[1]
+
 
 
 def nice_print(chunk):
@@ -131,6 +136,13 @@ def producer(pipe: Pipeline, wor: world.World):
         pipe.set_content(wor.get_chunk_height_map(0, 1, 1, 1))
         print("getting hmap")
         time.sleep(.1)
+
+    # To use it, put this in main :
+    # pipeline = Pipeline()
+    #
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    #     executor.submit(producer, pipeline, w)
+    #     executor.submit(visualize_chunk_update, pipeline)
 
 
 def build_simple_house(_w: world.World, start: Tuple[int, int, int], size: Tuple[int, int, int]):
@@ -167,9 +179,11 @@ if __name__ == "__main__":
 
     chunk_range = int(abs(chunks_area[1][0] - chunks_area[0][0])), int(abs(chunks_area[1][1] - chunks_area[0][1]))
 
+    occupied_spot = []
+
     for i in range(50):
         build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
-        h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
+        h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), max(chunk_range[0], chunk_range[1]))
 
         best = get_best_area(h_map, max(build_size[0], build_size[2]), speed=5)
 
@@ -178,16 +192,6 @@ if __name__ == "__main__":
         print(best)
         print(len(h_map))
 
-        # pipeline = Pipeline()
-        #
-        # with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        #     executor.submit(producer, pipeline, w)
-        #     executor.submit(visualize_chunk_update, pipeline)
-
-        coords = []
-        for x in range(chunk_range[0]):
-            for z in range(chunk_range[1]):
-                coords += chunk_heigtmap_to_coordinate(h_map[x * 16 + z * 16:x * 16 + z * 16 + 256], ((x + chunks_area[0][0]) * 16, (z + chunks_area[0][1]) * 16))
 
         print(f"len coords : {len(coords)}")
         house_center = coords[best]
