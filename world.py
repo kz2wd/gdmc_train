@@ -61,6 +61,9 @@ class World:
 
         return heightmap_dict
 
+    def get_chunks_NBT_data(self, pos_chunk_x: int, pos_chunk_z: int, size_x: int, size_z: int) -> list:
+        return requests.get(self.address + f'chunks?x={pos_chunk_x}&z={pos_chunk_z}&dx={size_x}&dz={size_z}',
+                            headers={'Accept': 'application/octet-stream'}).content
 
 def treat_chunk_data(rq):
     data = list(map(lambda x: f"{int(x):063b}", rq[:-1]))
@@ -94,3 +97,5 @@ def get_packets(data, size):
     while outputs > i:
         yield data[i * size: (i + 1) * size]
         i += 1
+
+
