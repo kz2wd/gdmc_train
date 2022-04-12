@@ -185,23 +185,24 @@ if __name__ == "__main__":
     w = world.World(bounding_box)
     # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
-    # Always include the adjacente chunk
-    val_to_chunk_val = lambda val: int(val // 16 + math.copysign(1, val))
 
-    chunks_area = [(val_to_chunk_val(bounding_box[0][0]), val_to_chunk_val(bounding_box[0][1])),
-                    (val_to_chunk_val(bounding_box[1][0]), val_to_chunk_val(bounding_box[1][1]))]
+    val_to_chunk_val = lambda val: val // 16
+
+    chunks_area = [(val_to_chunk_val(bounding_box[0][0]) - 1, val_to_chunk_val(bounding_box[0][1]) - 1),
+                    (val_to_chunk_val(bounding_box[1][0]) + 1, val_to_chunk_val(bounding_box[1][1]) + 1)]
 
     print(f"chunks_area : {chunks_area}")
     chunk_range = int(abs(chunks_area[1][0] - chunks_area[0][0])), int(abs(chunks_area[1][1] - chunks_area[0][1]))
     print(f"chunks range : {chunk_range}")
-    center = (bounding_box[0][1] - bounding_box[0][0]) // 2, (bounding_box[1][1] - bounding_box[1][0]) // 2
+    center = (bounding_box[1][0] - bounding_box[0][0]) // 2 + bounding_box[0][0], (bounding_box[1][1] - bounding_box[0][1]) // 2 + bounding_box[0][1]
     print(f"center : {center}")
     occupied_spots = []
 
     h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
+    print("got height map")
     for i in range(20):
         iter_start = time.time()
-        build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
+        build_size = random.randint(5, 10), random.randint(4, 15), random.randint(5, 10)
 
         speed_factor = max(build_size) // 5
         best = get_best_area(h_map, center, occupied_spots, (build_size[0], build_size[2]), speed=speed_factor)
@@ -214,7 +215,7 @@ if __name__ == "__main__":
                 occupied_spots.append((house_start[0] + x, house_start[2] + z))
 
         build_simple_house(w, house_start, build_size)
-
+        w.write_buffer()
         print(f"Placed house of size {build_size} at {best} in {time.time() - iter_start:.2f}s with speed {speed_factor}")
 
     # print("Chunk")
