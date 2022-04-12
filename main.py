@@ -76,23 +76,29 @@ def chunk_heigtmap_to_coordinate(chunk, offset):
 
 
 
-def get_best_area(heightmap, occupied_coord, size, speed=4, roof=200):
+def get_best_area(heightmap, center, occupied_coord, size, speed=4, roof=200):
 
     # Init best score, the lower the better, so we put it quite big at the start (normal scores should stay lower than 1000)
     best_score = 100_000_000
-    best_coord = heightmap[0]
+    dict_keys = list(heightmap.keys())
+    best_coord = dict_keys[0]
 
     # Speed factor will make it only iterate over "len(heightmap) / speed" coords
-    for coord in heightmap[::speed]:
-        score = get_score(coord, heightmap, occupied_coord, size, roof)
+    for coord in dict_keys[::speed]:
+        score = get_score(coord, center, heightmap, occupied_coord, size, roof)
+
         if score < best_score:
             best_score = score
             best_coord = coord
 
+        #     print(f"better score : {best_score} at {best_coord}")
+        # else:
+        #     print(f"score : {score} at {coord}")
+
     return best_coord
 
 
-def get_score(coord, heightmap, occupied_coord, size, roof):
+def get_score(coord, center, heightmap, occupied_coord, size, roof):
     height, width = size
     x, z = coord
     coord_high = heightmap[coord]
@@ -101,14 +107,26 @@ def get_score(coord, heightmap, occupied_coord, size, roof):
     if coord_high > roof:
         return 100_000_000
 
+    # apply bonus to score depending on the distance to the 'center'
+    score = distance(coord, center) * .1
     # Score = sum of difference between the first point's altitude and the other
-    score = 0
     for i in range(height):
         for j in range(width):
-            score += abs(coord_high - heightmap[(x + i, z + j)])
+            try:
+                current = (x + i, z + j)
+                if current in occupied_coord:
+                    # Bad luck I guess :3
+                    return 100_000_000
+                score += abs(coord_high - heightmap[current])
+            except KeyError:
+                pass
 
-    return coord_high
+    return score
 
+
+# Manhattan, you can tweak it later if you want
+def distance(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
 
 def nice_print(chunk):
@@ -173,33 +191,31 @@ if __name__ == "__main__":
     chunks_area = [(val_to_chunk_val(bounding_box[0][0]), val_to_chunk_val(bounding_box[0][1])),
                     (val_to_chunk_val(bounding_box[1][0]), val_to_chunk_val(bounding_box[1][1]))]
 
+    print(f"chunks_area : {chunks_area}")
     chunk_range = int(abs(chunks_area[1][0] - chunks_area[0][0])), int(abs(chunks_area[1][1] - chunks_area[0][1]))
+    print(f"chunks range : {chunk_range}")
+    center = (bounding_box[0][1] - bounding_box[0][0]) // 2, (bounding_box[1][1] - bounding_box[1][0]) // 2
+    print(f"center : {center}")
+    occupied_spots = []
 
-    occupied_spot = []
+    h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
+    for i in range(20):
+        iter_start = time.time()
+        build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
 
-    # h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
-    h_map = w.get_chunk_height_map(0, 0, 5, 5)
-    check_heightmap(h_map, w)
+        speed_factor = max(build_size) // 5
+        best = get_best_area(h_map, center, occupied_spots, (build_size[0], build_size[2]), speed=speed_factor)
 
-    # for i in range(50):
-    #     build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
-    #     h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), max(chunk_range[0], chunk_range[1]))
-    #
-    #     best = get_best_area(h_map, max(build_size[0], build_size[2]), speed=5)
-    #
-    #     if best is None:
-    #         continue
-    #     print(best)
-    #     print(len(h_map))
-    #
-    #
-    #     print(f"len coords : {len(coords)}")
-    #     house_center = coords[best]
-    #     print(house_center)
-    #
-    #     house_start = (house_center[0] - build_size[0] // 2, house_center[1], house_center[2] - build_size[2] // 2)
-    #
-    #     build_simple_house(w, house_start, build_size)
+
+        house_start = (best[0], h_map[best], best[1])
+
+        for x in range(build_size[0]):
+            for z in range(build_size[2]):
+                occupied_spots.append((house_start[0] + x, house_start[2] + z))
+
+        build_simple_house(w, house_start, build_size)
+
+        print(f"Placed house of size {build_size} at {best} in {time.time() - iter_start:.2f}s with speed {speed_factor}")
 
     # print("Chunk")
     # nice_print(h_map)

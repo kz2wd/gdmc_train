@@ -45,8 +45,8 @@ class World:
             print(f"Average : {round(self.requests_amount / took, 2)}rq/s")
 
 
-    def get_chunk_height_map(self, x: int, z: int, size_x: int, size_z: int) -> list:
-        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={size_x}&dz={size_z}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
+    def get_chunk_height_map(self, pos_chunk_x: int, pos_chunk_z: int, size_x: int, size_z: int) -> list:
+        rq = requests.get(self.address + f'chunks?x={pos_chunk_x}&z={pos_chunk_z}&dx={size_x}&dz={size_z}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
         h_map_chunks = []
         for i in range(1, len(rq)):
             h_map_chunks.append(treat_chunk_data(rq[i].split(']')[0].replace('L', '').split(',')))
@@ -57,7 +57,7 @@ class World:
             for chunk_z in range(size_z):
                 for x in range(16):
                     for z in range(16):
-                        heightmap_dict[(x + chunk_x * 16, z + chunk_z * 16)] = h_map_chunks[chunk_x + (chunk_z * size_x)][x + z * 16]
+                        heightmap_dict[(x + (chunk_x + pos_chunk_x) * 16, z + (chunk_z + pos_chunk_z) * 16)] = h_map_chunks[chunk_x + (chunk_z * size_x)][x + z * 16]
 
         return heightmap_dict
 
