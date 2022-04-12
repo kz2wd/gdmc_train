@@ -7,9 +7,10 @@ class World:
     BUFFER_SIZE: int = 100
     MAX_REQUESTS_AMOUNT = 0
 
-    def __init__(self, address='http://localhost:9000/'):
+    def __init__(self, build_limits, address='http://localhost:9000/'):
         self.address = address
         self.buffer = []
+        self.build_limits = build_limits
 
         # for stats purpose
         self.start = time.time()
@@ -17,6 +18,10 @@ class World:
         self.block_placed = 0
 
     def set_block(self, x: int, y: int, z: int, block: str) -> None:
+        # If the block to place is not inside the boundaries
+        if not (self.build_limits[0][0] <= x <= self.build_limits[1][0] and self.build_limits[0][1] <= z <= self.build_limits[1][1]):
+            return
+
         self.buffer.append((x, y, z, block))
         if len(self.buffer) >= World.BUFFER_SIZE:
             self.write_buffer()
@@ -41,17 +46,18 @@ class World:
 
 
     def get_chunk_height_map(self, x: int, z: int, size_x: int, size_z: int) -> list:
-        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={size}&dz={size}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
-        h_map = []
+        rq = requests.get(self.address + f'chunks?x={x}&z={z}&dx={size_x}&dz={size_z}').text.split('MOTION_BLOCKING_NO_LEAVES:[L;')
+        h_map_chunks = []
         for i in range(1, len(rq)):
-            h_map += treat_chunk_data(rq[i].split(']')[0].replace('L', '').split(','))
+            h_map_chunks.append(treat_chunk_data(rq[i].split(']')[0].replace('L', '').split(',')))
 
         heightmap_dict = dict()
 
-        for x in range(size_x * 16):
-            for z in range(size_z * 16):
-                # TODO : check if order is correct : maybe it is x * 16 and not z * 16
-                heightmap_dict[(x, z)] = h_map[x + (z * 16)]
+        for chunk_x in range(size_x):
+            for chunk_z in range(size_z):
+                for x in range(16):
+                    for z in range(16):
+                        heightmap_dict[(x + chunk_x * 16, z + chunk_z * 16)] = h_map_chunks[chunk_x + (chunk_z * size_x)][x + z * 16]
 
         return heightmap_dict
 

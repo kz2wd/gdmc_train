@@ -74,55 +74,40 @@ def chunk_heigtmap_to_coordinate(chunk, offset):
     return coords
 
 
-def get_level_batch(heightmap, occupied_coord=None):
-    if occupied_coord is None:
-        occupied_coord = []
-    batchs: list[list[tuple[int, int]]] = []
-    for coord, height in heightmap:
-        current_batch = get_current_batch(batchs, coord)
-        # Todo : fill the batchs but without the occupied spots
-
-
-def get_current_batch(batchs: list[list[tuple[int, int]]], coord: tuple[int, int]):
-    for batch in batchs:
-        if coord in batch:
-            return batch
-    new_batch = [coord]
-    batchs.append(new_batch)
-    return new_batch
 
 
 def get_best_area(heightmap, occupied_coord, size, speed=4, roof=200):
 
+    # Init best score, the lower the better, so we put it quite big at the start (normal scores should stay lower than 1000)
+    best_score = 100_000_000
+    best_coord = heightmap[0]
 
-    batchs = get_level_batch(heightmap, occupied_coord)
-
-    # try to get the best size possible with the batch
-    for batch in batchs:
-        # Idea : center 'mass' of the batch : No
-        """
-        Ok So here is the idea :
-            I should stop thinking about it like : find a location, put a batiment, repeat
-            
-            because I will lose the link between building, I need a way to create the city as a city and not a bunch of structures
-            
-            So we need to establish what we should have :
-            
-            First, we could start with a 'settlement center'
-        
-        """
-        get_batch_center(batch)
-
-
+    # Speed factor will make it only iterate over "len(heightmap) / speed" coords
+    for coord in heightmap[::speed]:
+        score = get_score(coord, heightmap, occupied_coord, size, roof)
+        if score < best_score:
+            best_score = score
+            best_coord = coord
 
     return best_coord
 
 
-def get_batch_center(batch):
-    x, y = 0, 0
-    for coord in batch:
-        x += coord[0]
-        y += coord[1]
+def get_score(coord, heightmap, occupied_coord, size, roof):
+    height, width = size
+    x, z = coord
+    coord_high = heightmap[coord]
+
+    # We don't want to be too high in the sky
+    if coord_high > roof:
+        return 100_000_000
+
+    # Score = sum of difference between the first point's altitude and the other
+    score = 0
+    for i in range(height):
+        for j in range(width):
+            score += abs(coord_high - heightmap[(x + i, z + j)])
+
+    return coord_high
 
 
 
@@ -159,17 +144,28 @@ def build_simple_house(_w: world.World, start: Tuple[int, int, int], size: Tuple
     # Floor
     panel(_w, start[0], start[1] + size[1] - 1, start[2], size[0], 1, size[2], "minecraft:oak_planks")
 
+    # Todo : add direction
     # Door
     _w.set_block(start[0] + size[0] // 2, start[1] + 1, start[2], "minecraft:oak_door")
     _w.set_block(start[0] + size[0] // 2, start[1] + 2, start[2], "minecraft:oak_door[half=upper]")
 
 
 
-if __name__ == "__main__":
-    w = world.World()
-    # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
+def check_heightmap(heightmap, world: world.World):
+    for coord in heightmap:
+        x, z = coord
+        world.set_block(x, heightmap[coord], z, "minecraft:orange_stained_glass")
+    world.write_buffer()
+    input("Enter to erase")
+    for coord in heightmap:
+        x, z = coord
+        world.set_block(x, heightmap[coord], z, "minecraft:air")
 
+
+if __name__ == "__main__":
     bounding_box = [(0, 0), (100, 100)]
+    w = world.World(bounding_box)
+    # cube(w, 50, 210, 50, 50, 'minecraft:jungle_leaves')
 
     # Always include the adjacente chunk
     val_to_chunk_val = lambda val: int(val // 16 + math.copysign(1, val))
@@ -181,25 +177,29 @@ if __name__ == "__main__":
 
     occupied_spot = []
 
-    for i in range(50):
-        build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
-        h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), max(chunk_range[0], chunk_range[1]))
+    # h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), chunk_range[0], chunk_range[1])
+    h_map = w.get_chunk_height_map(0, 0, 5, 5)
+    check_heightmap(h_map, w)
 
-        best = get_best_area(h_map, max(build_size[0], build_size[2]), speed=5)
-
-        if best is None:
-            continue
-        print(best)
-        print(len(h_map))
-
-
-        print(f"len coords : {len(coords)}")
-        house_center = coords[best]
-        print(house_center)
-
-        house_start = (house_center[0] - build_size[0] // 2, house_center[1], house_center[2] - build_size[2] // 2)
-
-        build_simple_house(w, house_start, build_size)
+    # for i in range(50):
+    #     build_size = random.randint(5, 20), random.randint(4, 15), random.randint(5, 20)
+    #     h_map = w.get_chunk_height_map(int(chunks_area[0][0]), int(chunks_area[0][1]), max(chunk_range[0], chunk_range[1]))
+    #
+    #     best = get_best_area(h_map, max(build_size[0], build_size[2]), speed=5)
+    #
+    #     if best is None:
+    #         continue
+    #     print(best)
+    #     print(len(h_map))
+    #
+    #
+    #     print(f"len coords : {len(coords)}")
+    #     house_center = coords[best]
+    #     print(house_center)
+    #
+    #     house_start = (house_center[0] - build_size[0] // 2, house_center[1], house_center[2] - build_size[2] // 2)
+    #
+    #     build_simple_house(w, house_start, build_size)
 
     # print("Chunk")
     # nice_print(h_map)
